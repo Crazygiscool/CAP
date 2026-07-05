@@ -7,13 +7,20 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Crazygiscool/CAP.git"
   },
-  "keywords": ["documentation", "mongodb", "typescript", "lore"],
+  "keywords": [
+    "documentation",
+    "mongodb",
+    "typescript",
+    "lore"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -25,9 +32,11 @@
     "zod": "^3.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
     "@types/node": "^20.12.7",
+    "@vitest/coverage-v8": "^2.1.9",
     "mongodb": "^6.5.0",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9",
     "zod": "^3.22.4"
   }
 }

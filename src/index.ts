@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { Collection, Db } from "mongodb";
 
@@ -45,4 +46,71 @@ export abstract class CAPRepository<T extends ICAPBaseDocument> {
   async listAll(): Promise<T[]> {
     return this.collection.find({}).toArray() as Promise<T[]>;
   }
+}
+
+// --- Dynamic Schema Generator ---
+
+export type FieldType = "string" | "number" | "boolean" | "date";
+
+export interface CustomFieldConfig {
+  key: string;
+  type: FieldType;
+  label: string;
+}
+
+export interface EntryFormatConfig {
+  requiredFields?: string[];
+  customFields?: CustomFieldConfig[];
+}
+
+export interface SettingsConfig {
+  databaseName: string;
+  entryFormat: EntryFormatConfig;
+}
+
+const CustomFieldSchema = z.object({
+  key: z.string().min(1),
+  type: z.enum(["string", "number", "boolean", "date"]),
+  label: z.string().min(1),
+});
+
+export const CAPSettingsSchema = z.object({
+  databaseName: z.string().min(1),
+  entryFormat: z.object({
+    requiredFields: z.array(z.string()).optional(),
+    customFields: z.array(CustomFieldSchema).optional(),
+  }),
+});
+
+function zodTypeForFieldType(fieldType: FieldType): z.ZodType {
+  switch (fieldType) {
+    case "string":
+      return z.string();
+    case "number":
+      return z.number();
+    case "boolean":
+      return z.boolean();
+    case "date":
+      return z.string().datetime();
+    default:
+      throw new Error(`Unknown field type: ${fieldType}`);
+  }
+}
+
+export function generateDynamicSchema(
+  customFields: CustomFieldConfig[],
+): z.ZodObject<z.ZodRawShape> {
+  const shape: Record<string, z.ZodType> = {};
+
+  for (const field of customFields) {
+    shape[field.key] = zodTypeForFieldType(field.type);
+  }
+
+  return CAPBaseSchema.extend(shape);
+}
+
+export function loadSettings(path: string): SettingsConfig {
+  const raw = readFileSync(path, "utf-8");
+  const parsed = JSON.parse(raw);
+  return CAPSettingsSchema.parse(parsed) as SettingsConfig;
 }
