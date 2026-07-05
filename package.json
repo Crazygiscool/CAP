@@ -1,0 +1,33 @@
+{
+  "name": "cap",
+  "version": "1.0.0",
+  "description": "The Central Archive Protocol core library for lore documentation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Crazygiscool/CAP.git"
+  },
+  "keywords": ["documentation", "mongodb", "typescript", "lore"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Crazygiscool/CAP/issues"
+  },
+  "homepage": "https://github.com/Crazygiscool/CAP#readme",
+  "peerDependencies": {
+    "mongodb": "^6.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.7",
+    "mongodb": "^6.5.0",
+    "zod": "^3.22.4"
+  }
+}
