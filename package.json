@@ -4,6 +4,12 @@
   "description": "The Central Archive Protocol core library for lore documentation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "docs/PLAN.md",
+    "docs/QUICKSTART.md"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsc",
