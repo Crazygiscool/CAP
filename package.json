@@ -1,6 +1,6 @@
 {
   "name": "@crazygiscool/cap",
-  "version": "1.1.10",
+  "version": "1.2.0",
   "description": "The Central Archive Protocol core library for lore documentation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,6 +8,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./crawler": {
+      "import": "./dist/crawler/index.js",
+      "types": "./dist/crawler/index.d.ts"
     }
   },
   "files": [
@@ -50,5 +54,8 @@
     "typescript": "^5.4.5",
     "vitest": "^2.1.9",
     "zod": "^3.22.4"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
   }
 }

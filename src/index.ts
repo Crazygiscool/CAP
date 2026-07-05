@@ -1,7 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { Collection, Db } from "mongodb";
+import type { Collection, Db } from "mongodb";
+
+// Re-export crawler
+export { Crawler } from "./crawler/index.js";
+export { MediaWikiClient } from "./crawler/mediawiki.js";
+export { mergeEntry, defaultMergeRules } from "./crawler/merger.js";
+export { getParser, parseTFWiki, parseWikipedia, parseFandom } from "./crawler/parsers/index.js";
+export { parseGenericInfobox, parsePortableInfobox, extractFirstParagraph, extractCategories, extractPageTitle } from "./crawler/parser.js";
+export type {
+  CrawlSourceConfig,
+  CrawlCategory,
+  FieldMappingEntry,
+  CrawlSourceRecord,
+  CrawledEntry,
+  MergeConfig,
+  MergeResult,
+  MergeableDocument,
+  ParsedWikiPage,
+  CrawlProgress,
+} from "./crawler/types.js";
+import type { CrawlSourceConfig, CrawlCategory, FieldMappingEntry } from "./crawler/types.js";
 
 // Universal Document Rules
 export interface ICAPBaseDocument {
@@ -96,9 +116,15 @@ export interface EntryFormatConfig {
   customFields?: CustomFieldConfig[];
 }
 
+export interface CrawlingConfig {
+  sources: CrawlSourceConfig[];
+  mergeRules: Record<string, boolean>;
+}
+
 export interface SettingsConfig {
   databaseName: string;
   entryFormat: EntryFormatConfig;
+  crawling?: CrawlingConfig;
 }
 
 const CustomFieldSchema = z.object({
@@ -107,12 +133,33 @@ const CustomFieldSchema = z.object({
   label: z.string().min(1),
 });
 
+const CrawlSourceSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  baseUrl: z.string().url(),
+  apiUrl: z.string().url(),
+  parser: z.enum(["tfwiki", "wikipedia", "fandom"]),
+  categories: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    path: z.string().min(1),
+  })),
+  fieldMapping: z.record(z.string(), z.object({
+    target: z.string().min(1),
+    type: z.enum(["string", "number", "boolean", "string-array"]),
+  })),
+});
+
 export const CAPSettingsSchema = z.object({
   databaseName: z.string().min(1),
   entryFormat: z.object({
     requiredFields: z.array(z.string()).optional(),
     customFields: z.array(CustomFieldSchema).optional(),
   }),
+  crawling: z.object({
+    sources: z.array(CrawlSourceSchema),
+    mergeRules: z.record(z.string(), z.boolean()),
+  }).optional(),
 });
 
 function zodTypeForFieldType(fieldType: FieldType): z.ZodType {
