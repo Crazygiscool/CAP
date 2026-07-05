@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { Collection, Db } from "mongodb";
@@ -36,15 +37,47 @@ export abstract class CAPRepository<T extends ICAPBaseDocument> {
     this.collection = db.collection<T>(collectionName);
   }
 
+  async create(
+    data: Omit<T, "id" | "createdAt" | "updatedAt">,
+  ): Promise<T & { id: string }> {
+    const doc = {
+      ...data,
+      id: randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
+    await this.collection.insertOne(doc);
+    return doc as T & { id: string };
+  }
+
+  async findById(id: string): Promise<T | null> {
+    return this.collection.findOne({ id } as any) as Promise<T | null>;
+  }
+
   async findByName(name: string): Promise<T | null> {
-    const result = await this.collection.findOne({
+    return this.collection.findOne({
       name: { $regex: name, $options: "i" },
-    } as any);
-    return result as T | null;
+    } as any) as Promise<T | null>;
   }
 
   async listAll(): Promise<T[]> {
     return this.collection.find({}).toArray() as Promise<T[]>;
+  }
+
+  async update(
+    id: string,
+    data: Partial<Omit<T, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<T | null> {
+    return this.collection.findOneAndUpdate(
+      { id } as any,
+      { $set: { ...data, updatedAt: new Date() } } as any,
+      { returnDocument: "after" },
+    ) as Promise<T | null>;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.collection.deleteOne({ id } as any);
+    return result.deletedCount > 0;
   }
 }
 
