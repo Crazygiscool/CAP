@@ -26,9 +26,29 @@ interface SearchResult {
 
 export class MediaWikiClient {
   private config: MediaWikiConfig;
+  private delayMs: number;
 
-  constructor(config: MediaWikiConfig) {
+  constructor(config: MediaWikiConfig, delayMs = 250) {
     this.config = config;
+    this.delayMs = delayMs;
+  }
+
+  private async delay(ms = this.delayMs): Promise<void> {
+    if (ms > 0) await new Promise((r) => setTimeout(r, ms));
+  }
+
+  private async fetchJson(
+    url: string,
+  ): Promise<Record<string, unknown>> {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "CAP-Crawler/1.0 (crawler; contact@crazygiscool)" },
+    });
+    if (!res.ok) {
+      throw new Error(
+        `MediaWiki API error: ${res.status} ${res.statusText}`,
+      );
+    }
+    return res.json() as Promise<Record<string, unknown>>;
   }
 
   private async fetchAllCategoryMembers(
@@ -51,15 +71,7 @@ export class MediaWikiClient {
       if (cmcontinue) params.set("cmcontinue", cmcontinue);
 
       const url = `${this.config.apiUrl}?${params}`;
-      const res = await fetch(url);
-
-      if (!res.ok) {
-        throw new Error(
-          `MediaWiki API error: ${res.status} ${res.statusText}`,
-        );
-      }
-
-      const data = (await res.json()) as ContinueResult;
+      const data = (await this.fetchJson(url)) as ContinueResult;
 
       if (data.error) {
         throw new Error(
@@ -72,6 +84,7 @@ export class MediaWikiClient {
 
       if (data.continue?.cmcontinue) {
         cmcontinue = data.continue.cmcontinue;
+        await this.delay();
       } else {
         break;
       }
@@ -107,9 +120,11 @@ export class MediaWikiClient {
     const all = new Set(pages);
 
     if (maxDepth > 0) {
+      await this.delay();
       const subcategories = await this.listSubCategories(categoryPath, maxPages);
       for (const subcat of subcategories) {
         if (all.size >= maxPages) break;
+        await this.delay();
         const subPages = await this.discoverAllPages(
           subcat,
           maxPages - all.size,
@@ -135,15 +150,7 @@ export class MediaWikiClient {
     });
 
     const url = `${this.config.apiUrl}?${params}`;
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      throw new Error(
-        `MediaWiki API error: ${res.status} for page "${pageTitle}"`,
-      );
-    }
-
-    const data = (await res.json()) as ParseResponse & {
+    const data = (await this.fetchJson(url)) as ParseResponse & {
       error?: { code: string; info: string };
     };
 
@@ -166,13 +173,7 @@ export class MediaWikiClient {
     });
 
     const url = `${this.config.apiUrl}?${params}`;
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      throw new Error(`MediaWiki API error: ${res.status} ${res.statusText}`);
-    }
-
-    const data = (await res.json()) as {
+    const data = (await this.fetchJson(url)) as {
       query?: { search?: SearchResult[] };
       error?: { code: string; info: string };
     };
