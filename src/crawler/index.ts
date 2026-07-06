@@ -106,7 +106,8 @@ export class Crawler<T extends MergeableDocument> {
   async scrape(pageTitle: string): Promise<CrawledEntry<T> | null> {
     const html = await this.client.fetchPageHtml(pageTitle);
     const parsed = this.parserFn(html);
-    if (!parsed.title) return null;
+    const name = parsed.title || pageTitle;
+    if (!name) return null;
 
     const mapped = mapFields(parsed, this.sourceConfig.fieldMapping, "");
 
@@ -117,7 +118,7 @@ export class Crawler<T extends MergeableDocument> {
     };
 
     return {
-      name: parsed.title,
+      name,
       description: mapped.description,
       continuityId: mapped.continuityId,
       factions: mapped.factions,
