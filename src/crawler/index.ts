@@ -95,6 +95,14 @@ export class Crawler<T extends MergeableDocument> {
     return this.client.listCategoryMembers(categoryPath, maxPages);
   }
 
+  async discoverAll(
+    categoryPath: string,
+    maxPages = 500,
+    maxDepth = 3,
+  ): Promise<string[]> {
+    return this.client.discoverAllPages(categoryPath, maxPages, maxDepth);
+  }
+
   async scrape(pageTitle: string): Promise<CrawledEntry<T> | null> {
     const html = await this.client.fetchPageHtml(pageTitle);
     const parsed = this.parserFn(html);
@@ -122,8 +130,9 @@ export class Crawler<T extends MergeableDocument> {
     categoryPath: string,
     onProgress?: (progress: CrawlProgress) => void,
     maxPages = 500,
+    maxDepth = 3,
   ): Promise<CrawledEntry<T>[]> {
-    const titles = await this.discover(categoryPath, maxPages);
+    const titles = await this.discoverAll(categoryPath, maxPages, maxDepth);
     const entries: CrawledEntry<T>[] = [];
 
     for (let i = 0; i < titles.length; i++) {

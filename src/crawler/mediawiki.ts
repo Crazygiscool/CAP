@@ -7,6 +7,12 @@ interface CategoryMember {
   title: string;
 }
 
+interface ContinueResult {
+  continue?: { cmcontinue?: string };
+  query?: { categorymembers?: CategoryMember[] };
+  error?: { code: string; info: string };
+}
+
 interface ParseResponse {
   parse?: {
     title: string;
@@ -25,38 +31,99 @@ export class MediaWikiClient {
     this.config = config;
   }
 
+  private async fetchAllCategoryMembers(
+    categoryPath: string,
+    maxPages: number,
+    cmtype: "page" | "subcat",
+  ): Promise<string[]> {
+    const allTitles: string[] = [];
+    let cmcontinue: string | undefined;
+
+    while (allTitles.length < maxPages) {
+      const params = new URLSearchParams({
+        action: "query",
+        format: "json",
+        list: "categorymembers",
+        cmtitle: categoryPath,
+        cmlimit: String(Math.min(maxPages - allTitles.length, 500)),
+        cmtype,
+      });
+      if (cmcontinue) params.set("cmcontinue", cmcontinue);
+
+      const url = `${this.config.apiUrl}?${params}`;
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error(
+          `MediaWiki API error: ${res.status} ${res.statusText}`,
+        );
+      }
+
+      const data = (await res.json()) as ContinueResult;
+
+      if (data.error) {
+        throw new Error(
+          `MediaWiki API: ${data.error.code} — ${data.error.info}`,
+        );
+      }
+
+      const members = data.query?.categorymembers ?? [];
+      allTitles.push(...members.map((m: CategoryMember) => m.title));
+
+      if (data.continue?.cmcontinue) {
+        cmcontinue = data.continue.cmcontinue;
+      } else {
+        break;
+      }
+    }
+
+    return allTitles.slice(0, maxPages);
+  }
+
   async listCategoryMembers(
     categoryPath: string,
     maxPages = 500,
   ): Promise<string[]> {
-    const params = new URLSearchParams({
-      action: "query",
-      format: "json",
-      list: "categorymembers",
-      cmtitle: categoryPath,
-      cmlimit: String(Math.min(maxPages, 500)),
-      cmtype: "page",
-    });
+    return this.fetchAllCategoryMembers(categoryPath, maxPages, "page");
+  }
 
-    const url = `${this.config.apiUrl}?${params}`;
-    const res = await fetch(url);
+  async listSubCategories(
+    categoryPath: string,
+    maxPages = 500,
+  ): Promise<string[]> {
+    return this.fetchAllCategoryMembers(categoryPath, maxPages, "subcat");
+  }
 
-    if (!res.ok) {
-      throw new Error(`MediaWiki API error: ${res.status} ${res.statusText}`);
+  async discoverAllPages(
+    categoryPath: string,
+    maxPages = 500,
+    maxDepth = 3,
+    seen = new Set<string>(),
+  ): Promise<string[]> {
+    if (maxDepth < 0 || seen.has(categoryPath)) return [];
+    seen.add(categoryPath);
+
+    const pages = await this.listCategoryMembers(categoryPath, maxPages);
+    const all = new Set(pages);
+
+    if (maxDepth > 0) {
+      const subcategories = await this.listSubCategories(categoryPath, maxPages);
+      for (const subcat of subcategories) {
+        if (all.size >= maxPages) break;
+        const subPages = await this.discoverAllPages(
+          subcat,
+          maxPages - all.size,
+          maxDepth - 1,
+          seen,
+        );
+        for (const p of subPages) {
+          all.add(p);
+          if (all.size >= maxPages) break;
+        }
+      }
     }
 
-    const data = await res.json() as {
-      query?: { categorymembers?: CategoryMember[] };
-      error?: { code: string; info: string };
-    };
-
-    if (data.error) {
-      throw new Error(`MediaWiki API: ${data.error.code} — ${data.error.info}`);
-    }
-
-    return (data.query?.categorymembers ?? []).map(
-      (m: CategoryMember) => m.title,
-    );
+    return [...all].slice(0, maxPages);
   }
 
   async fetchPageHtml(pageTitle: string): Promise<string> {
