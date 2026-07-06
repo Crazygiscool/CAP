@@ -98,7 +98,7 @@ export class Crawler<T extends MergeableDocument> {
   async discoverAll(
     categoryPath: string,
     maxPages = 500,
-    maxDepth = 3,
+    maxDepth = 2,
   ): Promise<string[]> {
     return this.client.discoverAllPages(categoryPath, maxPages, maxDepth);
   }

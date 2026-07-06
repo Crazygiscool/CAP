@@ -28,7 +28,7 @@ export class MediaWikiClient {
   private config: MediaWikiConfig;
   private delayMs: number;
 
-  constructor(config: MediaWikiConfig, delayMs = 250) {
+  constructor(config: MediaWikiConfig, delayMs = 50) {
     this.config = config;
     this.delayMs = delayMs;
   }
@@ -39,9 +39,11 @@ export class MediaWikiClient {
 
   private async fetchJson(
     url: string,
+    signal?: AbortSignal,
   ): Promise<Record<string, unknown>> {
     const res = await fetch(url, {
       headers: { "User-Agent": "CAP-Crawler/1.0 (crawler; contact@crazygiscool)" },
+      signal,
     });
     if (!res.ok) {
       throw new Error(
@@ -55,6 +57,7 @@ export class MediaWikiClient {
     categoryPath: string,
     maxPages: number,
     cmtype: "page" | "subcat",
+    signal?: AbortSignal,
   ): Promise<string[]> {
     const allTitles: string[] = [];
     let cmcontinue: string | undefined;
@@ -71,7 +74,7 @@ export class MediaWikiClient {
       if (cmcontinue) params.set("cmcontinue", cmcontinue);
 
       const url = `${this.config.apiUrl}?${params}`;
-      const data = (await this.fetchJson(url)) as ContinueResult;
+      const data = (await this.fetchJson(url, signal)) as ContinueResult;
 
       if (data.error) {
         throw new Error(
@@ -96,32 +99,35 @@ export class MediaWikiClient {
   async listCategoryMembers(
     categoryPath: string,
     maxPages = 500,
+    signal?: AbortSignal,
   ): Promise<string[]> {
-    return this.fetchAllCategoryMembers(categoryPath, maxPages, "page");
+    return this.fetchAllCategoryMembers(categoryPath, maxPages, "page", signal);
   }
 
   async listSubCategories(
     categoryPath: string,
     maxPages = 500,
+    signal?: AbortSignal,
   ): Promise<string[]> {
-    return this.fetchAllCategoryMembers(categoryPath, maxPages, "subcat");
+    return this.fetchAllCategoryMembers(categoryPath, maxPages, "subcat", signal);
   }
 
   async discoverAllPages(
     categoryPath: string,
     maxPages = 500,
-    maxDepth = 3,
+    maxDepth = 2,
+    signal?: AbortSignal,
     seen = new Set<string>(),
   ): Promise<string[]> {
     if (maxDepth < 0 || seen.has(categoryPath)) return [];
     seen.add(categoryPath);
 
-    const pages = await this.listCategoryMembers(categoryPath, maxPages);
+    const pages = await this.listCategoryMembers(categoryPath, maxPages, signal);
     const all = new Set(pages);
 
     if (maxDepth > 0) {
       await this.delay();
-      const subcategories = await this.listSubCategories(categoryPath, maxPages);
+      const subcategories = await this.listSubCategories(categoryPath, maxPages, signal);
       for (const subcat of subcategories) {
         if (all.size >= maxPages) break;
         await this.delay();
@@ -129,6 +135,7 @@ export class MediaWikiClient {
           subcat,
           maxPages - all.size,
           maxDepth - 1,
+          signal,
           seen,
         );
         for (const p of subPages) {
