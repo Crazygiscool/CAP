@@ -1,6 +1,6 @@
 {
   "name": "@crazygiscool/cap",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "The Central Archive Protocol core library for lore documentation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
